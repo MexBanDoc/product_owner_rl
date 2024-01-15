@@ -1,5 +1,5 @@
+from environment import ProductOwnerEnv
 from algorithms.deep_q_networks import DQN
-from environment.environment import ProductOwnerEnv
 
 
 class BaseStudy:
@@ -14,7 +14,9 @@ class BaseStudy:
     def play_trajectory(self, init_state):
         total_reward = 0
         state = init_state
-        for t in range(self.trajectory_max_len):
+        t = 0
+        done = False
+        while not done:
             action = self.agent.get_action(state)
             next_state, reward, done, _ = self.env.step(action)
 
@@ -23,12 +25,13 @@ class BaseStudy:
             state = next_state
             total_reward += reward
 
-            if done:
+            t += 1
+            if t == self.trajectory_max_len:
                 break
 
         return total_reward
 
-    def study_agent(self, episode_n: int):
+    def study_agent(self, episode_n):
         for episode in range(episode_n):
             state = self.env.reset()
             self.play_trajectory(state)
