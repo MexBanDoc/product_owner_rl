@@ -56,9 +56,10 @@ class LoggingStudy(BaseStudyDQN):
     
     def play_trajectory(self, init_state):
         with torch.no_grad():
-            state = torch.tensor(init_state)
+            state = torch.tensor(init_state).to(self.agent.device)
             q_values: torch.Tensor = self.agent.q_function(state)
-            self.q_value_log.append(q_values.max())
+            estimates = q_values.max().detach().cpu().numpy()
+            self.q_value_log.append(estimates)
         
         reward = super().play_trajectory(init_state)
         sprint_n = self.env.game.context.current_sprint
@@ -92,7 +93,10 @@ class LoggingStudy(BaseStudyDQN):
         for epoche in range(epoche_n):
             path = f'{agent_name}/model_{epoche}.pt'
             super().study_agent(self.save_rate)
+            memory = self.agent.memory
+            self.agent.memory = []
             save_dqn_agent(self.agent, path=path)
+            self.agent.memory = memory
             with open(f'{agent_name}/rewards_{epoche}.txt', mode='w') as f:
                 f.write(repr(self.rewards_log))
             with open(f'{agent_name}/estimates_{epoche}.txt', mode='w') as f:

@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+from environment import StochasticGameStartEnv
 
 from pipeline.study_agent import LoggingStudy, load_dqn_agent
 from algorithms.deep_q_networks import DQN, DoubleDQN
@@ -15,7 +16,7 @@ if __name__ == "__main__":
 
     epsilon_decrease = 1 / (trajecory_max_len * episode_n)
 
-    agent = DoubleDQN(state_dim, action_n, tau=0.001, epsilon_decrease=epsilon_decrease)
+    agent = DoubleDQN(state_dim, action_n, gamma=0.9, tau=0.001, epsilon_decrease=epsilon_decrease)
 
     study = LoggingStudy(env, agent, trajecory_max_len=trajecory_max_len, save_rate=100)
 
@@ -29,10 +30,11 @@ if __name__ == "__main__":
 
     os.makedirs('figures', exist_ok=True)
 
-    plt.plot(rewards, '.')
-    plt.plot(estimates)
+    plt.plot(rewards, '.', label='Rewards')
+    plt.plot(estimates, '.', label='Estimates')
     plt.xlabel("Trajectory")
     plt.ylabel('Reward')
+    plt.legend()
     plt.savefig('figures/rewards.png')
     plt.show()
 
