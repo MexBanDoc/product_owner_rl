@@ -118,7 +118,8 @@ class ProductOwnerEnv:
         reward += self._get_reward()
         reward += reward_bit
         self.current_state = self._get_state()
-        return self.current_state, reward, self.game.context.done, None
+        done = self.game.context.done or self.game.context.customers < 0
+        return self.current_state, reward, done, None
 
     def _get_credit_reward(self, credit_before):
         credit_after = self.game.context.credit
@@ -355,7 +356,8 @@ class ProductOwnerEnv:
             money_after = self.game.context.get_money()
             loyalty = self.game.context.get_loyalty()
             customers = self.game.context.customers
-            print(f"{money_after / 1e5:2.4f}, {loyalty:2.4f}, {customers:3.4f}")
+            current_sprint = self.game.context.current_sprint
+            print(f"{current_sprint}: {money_after / 1e5:2.4f}, {loyalty:2.4f}, {customers:3.4f}")
 
     def _log_decomposition(self, is_successful):
         if self.IS_SILENT:

@@ -4,13 +4,15 @@ from environment import TutorialSolverEnv, CreditPayerEnv, ProductOwnerEnv
 
 class AggregatorStudy(LoggingStudy):
     def __init__(self, env, agents, trajectory_max_len, save_rate=100) -> None:
-        assert 0 < len(agents) < 4
+        assert 0 < len(agents) < 5
         self.stage = len(agents)
         if self.stage == 1:
             assert isinstance(env, TutorialSolverEnv)
         if self.stage == 2:
             assert isinstance(env, CreditPayerEnv)
         if self.stage == 3:
+            assert isinstance(env, CreditPayerEnv) and env.with_end
+        if self.stage == 4:
             assert isinstance(env, ProductOwnerEnv)
 
         self.agents = agents
@@ -29,13 +31,31 @@ class AggregatorStudy(LoggingStudy):
             return reward
         if self.stage == 3:
             tutorial_agent = self.agents[0]
-            credit_agent = self.agents[1]
+            credit_start_agent = self.agents[1]
             state, reward, failed = self.play_tutorial(tutorial_agent)
             if failed:
                 return reward
-            state, credit_reward, failed = self.play_credit_payment(credit_agent)
+            state, credit_reward, failed = self.play_credit_payment(credit_start_agent, False)
+            if failed:
+                return reward + credit_reward
+            reward += credit_reward
+            reward += super().play_trajectory(state)
+            print(f"full total_reward: {reward}")
+            return reward
+        if self.stage == 4:
+            tutorial_agent = self.agents[0]
+            credit_start_agent = self.agents[1]
+            credit_end_agent = self.agents[2]
+            state, reward, failed = self.play_tutorial(tutorial_agent)
             if failed:
                 return reward
+            state, credit_reward, failed = self.play_credit_payment(credit_start_agent, False)
+            if failed:
+                return reward + credit_reward
+            reward += credit_reward
+            state, credit_reward, failed = self.play_credit_payment(credit_end_agent, True)
+            if failed:
+                return reward + credit_reward
             reward += credit_reward
             reward += super().play_trajectory(state)
             print(f"full total_reward: {reward}")
@@ -60,10 +80,11 @@ class AggregatorStudy(LoggingStudy):
 
         return self.env._get_state(), total_reward, env.game.context.get_money() < 0
 
-    def play_credit_payment(self, credit_agent):
-        env = CreditPayerEnv(with_sprint=self.env.with_sprint)
+    def play_credit_payment(self, credit_agent, with_end):
+        env = CreditPayerEnv(with_sprint=self.env.with_sprint, with_end=with_end)
         env.game = self.env.game
-        done = self.env.game.context.current_sprint == 35
+        end_sprint = 35 if with_end else 30
+        done = self.env.game.context.current_sprint == end_sprint
         state = env._get_state()
         total_reward = 0
 
