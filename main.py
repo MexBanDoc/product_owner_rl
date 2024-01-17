@@ -17,11 +17,11 @@ if __name__ == "__main__":
     # epsilon_decrease = 1 / (trajectory_max_len * episode_n)
     epsilon_decrease = 1e-4
 
-    agent_tutorial = load_dqn_agent("../DoubleDQN(tutorial+)/model_20_0.pt")
+    agent_tutorial = load_dqn_agent("./models/tutorial_agent.pt")
 
     agent = DoubleDQN(state_dim, action_n, tau=0.001, epsilon_decrease=epsilon_decrease)
-    agent_credit_start = load_dqn_agent("../DoubleDQN(credit_add-)/model_1_0.pt")
-    agent_credit_end = load_dqn_agent("../DoubleDQN(credit_end)/model_10_0.pt")
+    agent_credit_start = load_dqn_agent("./models/credit_start_agent.pt")
+    agent_credit_end = load_dqn_agent("./models/credit_end_agent.pt")
 
     study = AggregatorStudy(env, agents=[agent_tutorial, agent_credit_start,
                                          agent_credit_end, agent],
