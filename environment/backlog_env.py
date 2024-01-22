@@ -11,7 +11,7 @@ from game.game_variables import GlobalContext
 BUG = UserCardType.BUG
 TECH_DEBT = UserCardType.TECH_DEBT
 
-BACKLOG_COMMON_FEATURE_COUNT = 4
+BACKLOG_COMMON_FEATURE_COUNT = 7
 BACKLOG_BUG_FEATURE_COUNT = 3
 BACKLOG_TECH_DEBT_FEATURE_COUNT = 3
 
@@ -127,7 +127,10 @@ class BacklogEnv:
         encoded = [card_info.base_hours,
                    card_info.hours,
                    card_info.card_type.value,
-                   10 * (1 - us_card_info.completed_part)]
+                   10 * (1 - us_card_info.completed_part),
+                   us_card_info.loyalty,
+                   us_card_info.customers_to_bring,
+                   context.current_sprint - us_card_info.spawn_sprint]
         assert len(encoded) == BACKLOG_COMMON_FEATURE_COUNT
         return encoded
 

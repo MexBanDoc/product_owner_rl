@@ -29,8 +29,9 @@ def eval_agents_trajectory(env: ProductOwnerEnv, agents, is_silent):
         print(f"reward tutorial: {reward},"
               f"current sprint: {env.game.context.current_sprint}")
     if stage == 2:
+        assert isinstance(env, CreditPayerEnv)
         _, reward = play_tutorial(env, agents[0], is_silent)
-        _, credit_reward = play_credit_payment(env, agents[1], is_silent)
+        _, credit_reward = play_credit_payment(env, agents[1], is_silent, with_end=env.with_end)
         full_reward = reward + credit_reward
         print(f"reward tutorial: {reward},"
               f"reward credit: {credit_reward},"
@@ -104,11 +105,13 @@ def eval_some_model(env: ProductOwnerEnv, agents, repeat_count: int, is_silent: 
 
 def play_tutorial(main_env, tutorial_agent, is_silent=True):
     env = TutorialSolverEnv(with_sprint=main_env.with_sprint)
+    env.with_info = main_env.with_info
     return play_some_stage(main_env, env, tutorial_agent, "tutorial end", is_silent)
 
 
 def play_credit_payment(main_env, credit_agent, is_silent=True, with_end=False):
     env = CreditPayerEnv(with_sprint=main_env.with_sprint, with_end=with_end)
+    env.with_info = main_env.with_info
     return play_some_stage(main_env, env, credit_agent, "credit end", is_silent)
 
 
@@ -118,10 +121,19 @@ def play_some_stage(main_env: ProductOwnerEnv, player: ProductOwnerEnv, agent, l
     player.game = main_env.game
     done = main_env.game.context.get_money() < 0
     state = player._get_state()
+    not_sprint_count = 0
     total_reward = 0
 
     while not done:
         action = agent.get_action(state)
+        if action == 0:
+            not_sprint_count = 0
+        else:
+            not_sprint_count += 1
+        if not_sprint_count > 20:
+            action = 0
+            not_sprint_count = 0
+            print("\\next")
         state, reward, done, _ = player.step(action)
 
         total_reward += reward
@@ -134,10 +146,13 @@ def play_some_stage(main_env: ProductOwnerEnv, player: ProductOwnerEnv, agent, l
 if __name__ == "__main__":
     env = ProductOwnerEnv(with_sprint=False)
     env.IS_SILENT = True
-    agent_tutorial = load_dqn_agent("./models/tutorial_agent.pt")
-    agent_credit = load_dqn_agent("./models/credit_start_agent.pt")
-    agent_credit_end = load_dqn_agent("./models/credit_end_agent.pt")
-    agent_end = load_dqn_agent("./models/end_agent.pt")
+    agent_tutorial = load_dqn_agent("./models/current/tutorial_agent.pt")
+    agent_tutorial.epsilon = 0
+    agent_credit = load_dqn_agent("./models/current/credit_start_agent.pt")
+    agent_credit.epsilon = 0
+    agent_credit_end = load_dqn_agent("./models/current/credit_end_agent.pt")
+    agent_credit_end.epsilon = 0
+    agent_end = load_dqn_agent("./models/current/end_agent.pt")
 
     reses = eval_some_model(env, [agent_tutorial, agent_credit, agent_credit_end, agent_end],
                             1000, is_silent=True)

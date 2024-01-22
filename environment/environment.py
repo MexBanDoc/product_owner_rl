@@ -1,7 +1,7 @@
 from environment.backlog_env import BacklogEnv
 from environment.userstory_env import UserstoryEnv
 from game.game import ProductOwnerGame
-from game.game_constants import UserCardType
+from game.game_constants import UserCardType, GlobalConstants
 import torch
 import numpy as np
 from game.game_generators import get_buggy_game_1
@@ -13,7 +13,7 @@ TECH_DEBT = UserCardType.TECH_DEBT
 class ProductOwnerEnv:
     IS_SILENT = False
 
-    def __init__(self, userstory_env=None, backlog_env=None, with_sprint=True):
+    def __init__(self, userstory_env=None, backlog_env=None, with_sprint=True, with_info=False):
         self.game = ProductOwnerGame()
         self.backlog_env = BacklogEnv() if backlog_env is None else backlog_env
         self.backlog_env.with_sprint = with_sprint
@@ -26,6 +26,7 @@ class ProductOwnerEnv:
             self.backlog_env.backlog_space_dim
 
         self.with_sprint = with_sprint
+        self.with_info = with_info
 
         if with_sprint:
             self.state_dim += self.backlog_env.sprint_space_dim
@@ -119,7 +120,10 @@ class ProductOwnerEnv:
         reward += reward_bit
         self.current_state = self._get_state()
         done = self.game.context.done or self.game.context.customers < 0
-        return self.current_state, reward, done, None
+        current_sprint = self.game.context.current_sprint
+        done = done or (current_sprint > 10 and self.game.context.customers <= 0)
+        info = self._get_info() if self.with_info else None
+        return self.current_state, reward, done, info
 
     def _get_credit_reward(self, credit_before):
         credit_after = self.game.context.credit
@@ -139,6 +143,108 @@ class ProductOwnerEnv:
         else:
             reward_for_endgame = 0
         return reward_for_endgame
+
+    def _get_info(self):
+        info = []
+        game = self.game
+        current_money = game.context.get_money()
+        if game.backlog.can_start_sprint():
+            info.append(0)
+        if game.userstories.release_available:
+            info.append(1)
+        if game.hud.release_available:
+            info.append(2)
+        if self._get_min_not_full_room_number() > 0 and \
+                current_money > GlobalConstants.NEW_WORKER_COST:
+            info.append(3)
+        if self._get_min_available_to_buy_room_number() > 0 and \
+                current_money > GlobalConstants.NEW_ROOM_COST * game.context.current_room_multiplier:
+            info.append(4)
+        current_stories = len(self.game.context.current_stories.values())
+        available_stories = len(self.game.context.available_stories.values())
+        total_stories = current_stories + available_stories
+        if game.userstories.statistical_research_available and total_stories < 7 and \
+                current_money > GlobalConstants.statistical_research_cost:
+            info.append(5)
+        if game.userstories.user_survey_available and total_stories < 7 and \
+                current_money > GlobalConstants.user_survey_cost:
+            info.append(6)
+        info += self._get_info_cards()
+        return info
+
+    def _get_info_cards(self):
+        info = self._get_info_userstories()
+        info += self._get_info_backlog()
+        info += self._get_info_sprint()
+        return info
+
+    def _get_info_userstories(self):
+        info = []
+        if self.game.userstories.available:
+            for i in range(len(self.userstory_env.userstories_common)):
+                action = self.meta_action_dim + i
+                card = self.userstory_env.userstories_common[i]
+                if card.is_movable and not card.is_in_release:
+                    info.append(action)
+            for i in range(len(self.userstory_env.userstories_bugs)):
+                action = self.meta_action_dim + len(self.userstory_env.userstories_common) + i
+                card = self.userstory_env.userstories_bugs[i]
+                if card.is_movable and not card.is_in_release:
+                    info.append(action)
+            for i in range(len(self.userstory_env.userstories_td)):
+                action = self.meta_action_dim + len(self.userstory_env.userstories_common) + \
+                         len(self.userstory_env.userstories_bugs) + i
+                card = self.userstory_env.userstories_td[i]
+                if card.is_movable and not card.is_in_release:
+                    info.append(action)
+        return info
+
+    def _get_info_backlog(self):
+        info = []
+        current_hours = self.game.backlog.calculate_hours_sum()
+        max_sprint_hours = self.game.backlog.get_max_hours()
+        for i in range(len(self.backlog_env.backlog_commons)):
+            action = self.meta_action_dim + self.userstory_max_action_num + i
+            card = self.backlog_env.backlog_commons[i]
+            if max_sprint_hours >= current_hours + card.info.hours:
+                info.append(action)
+        for i in range(len(self.backlog_env.backlog_bugs)):
+            action = self.meta_action_dim + self.userstory_max_action_num + \
+                     self.backlog_env.backlog_commons_count + i
+            card = self.backlog_env.backlog_bugs[i]
+            if max_sprint_hours >= current_hours + card.info.hours:
+                info.append(action)
+        for i in range(len(self.backlog_env.backlog_tech_debt)):
+            action = self.meta_action_dim + self.userstory_max_action_num + \
+                     self.backlog_env.backlog_commons_count + self.backlog_env.backlog_bugs_count + i
+            card = self.backlog_env.backlog_tech_debt[i]
+            if max_sprint_hours >= current_hours + card.info.hours:
+                info.append(action)
+        return info
+
+    def _get_info_sprint(self):
+        info = []
+        if self.with_sprint:
+            current_hours = self.game.backlog.calculate_hours_sum()
+            max_sprint_hours = self.game.backlog.get_max_hours()
+            for i in range(len(self.backlog_env.sprint_commons)):
+                action = self.meta_action_dim + self.userstory_max_action_num + i
+                card = self.backlog_env.sprint_commons[i]
+                if max_sprint_hours >= current_hours + card.info.hours:
+                    info.append(action)
+            for i in range(len(self.backlog_env.sprint_bugs)):
+                action = self.meta_action_dim + self.userstory_max_action_num + \
+                         self.backlog_env.sprint_commons_count + i
+                card = self.backlog_env.sprint_bugs[i]
+                if max_sprint_hours >= current_hours + card.info.hours:
+                    info.append(action)
+            for i in range(len(self.backlog_env.sprint_tech_debt)):
+                action = self.meta_action_dim + self.userstory_max_action_num + \
+                         self.backlog_env.sprint_commons_count + self.backlog_env.sprint_bugs_count + i
+                card = self.backlog_env.sprint_tech_debt[i]
+                if max_sprint_hours >= current_hours + card.info.hours:
+                    info.append(action)
+        return info
 
     def _get_reward_for_starting_sprint(self, money_before, sprint_hours):
         money_after = self.game.context.get_money()

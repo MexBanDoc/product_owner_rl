@@ -62,14 +62,24 @@ class AggregatorStudy(LoggingStudy):
             return reward
 
     def play_tutorial(self, tutorial_agent):
+        tutorial_agent.epsilon = 0
         env = TutorialSolverEnv(with_sprint=self.env.with_sprint)
         env.game = self.env.game
         done = not self.env.game.context.is_new_game
         state = env._get_state()
+        not_sprint_count = 0
         total_reward = 0
 
         while not done:
             action = tutorial_agent.get_action(state)
+            if action == 0:
+                not_sprint_count = 0
+            else:
+                not_sprint_count += 1
+            if not_sprint_count > 20:
+                action = 0
+                not_sprint_count = 0
+                print("\\next")
             state, reward, done, _ = env.step(action)
 
             total_reward += reward
@@ -81,15 +91,25 @@ class AggregatorStudy(LoggingStudy):
         return self.env._get_state(), total_reward, env.game.context.get_money() < 0
 
     def play_credit_payment(self, credit_agent, with_end):
+        credit_agent.epsilon = 0
         env = CreditPayerEnv(with_sprint=self.env.with_sprint, with_end=with_end)
         env.game = self.env.game
-        end_sprint = 35 if with_end else 30
+        end_sprint = 35 if with_end else 32
         done = self.env.game.context.current_sprint == end_sprint
         state = env._get_state()
+        not_sprint_count = 0
         total_reward = 0
 
         while not done:
             action = credit_agent.get_action(state)
+            if action == 0:
+                not_sprint_count = 0
+            else:
+                not_sprint_count += 1
+            if not_sprint_count > 20:
+                action = 0
+                not_sprint_count = 0
+                print("\\next")
             state, reward, done, _ = env.step(action)
 
             total_reward += reward

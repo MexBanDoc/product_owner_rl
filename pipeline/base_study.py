@@ -15,9 +15,18 @@ class BaseStudy:
         total_reward = 0
         state = init_state
         t = 0
+        not_sprint_count = 0
         done = False
         while not done:
             action = self.agent.get_action(state)
+            if action == 0:
+                not_sprint_count = 0
+            else:
+                not_sprint_count += 1
+            if not_sprint_count > 20:
+                action = 0
+                not_sprint_count = 0
+                print("\\next")
             next_state, reward, done, _ = self.env.step(action)
 
             self.fit_agent(state, action, reward, done, next_state)

@@ -7,7 +7,7 @@ from algorithms.deep_q_networks import DQN, DoubleDQN
 from environment import CreditPayerEnv, TutorialSolverEnv, ProductOwnerEnv
 
 if __name__ == "__main__":
-    env = ProductOwnerEnv(with_sprint=False)
+    env = CreditPayerEnv(with_sprint=False, with_end=True, with_late_purchases_punishment=False)
     state_dim = env.state_dim
     action_n = env.action_n
 
@@ -17,14 +17,16 @@ if __name__ == "__main__":
     # epsilon_decrease = 1 / (trajectory_max_len * episode_n)
     epsilon_decrease = 1e-4
 
-    agent_tutorial = load_dqn_agent("./models/tutorial_agent.pt")
+    agent_tutorial = load_dqn_agent("./models/current/tutorial_agent.pt")
 
-    agent = DoubleDQN(state_dim, action_n, tau=0.001, epsilon_decrease=epsilon_decrease)
-    agent_credit_start = load_dqn_agent("./models/credit_start_agent.pt")
-    agent_credit_end = load_dqn_agent("./models/credit_end_agent.pt")
+    agent = DoubleDQN(state_dim, action_n, gamma=0.92, tau=0.001, batch_size=128, epsilon_decrease=epsilon_decrease)
+    # agent_credit_start = load_dqn_agent("./models/current/credit_start_agent.pt")
+    # agent_credit_end = load_dqn_agent("./models/current/credit_end_agent.pt")
 
-    study = AggregatorStudy(env, agents=[agent_tutorial, agent_credit_start,
-                                         agent_credit_end, agent],
+    study = AggregatorStudy(env, agents=[agent_tutorial,
+                                         # agent_credit_start,
+                                         # agent_credit_end,
+                                         agent],
                             trajectory_max_len=trajectory_max_len, save_rate=100)
 
     try:

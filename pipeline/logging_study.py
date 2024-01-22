@@ -58,16 +58,17 @@ class LoggingStudy(MetricsStudy):
 
         for epoch in range(epoch_n):
             current_time = 0
-            path = f'{agent_name}/model_{epoch}_{current_time}.pt'
+            save_epoch = 0 + epoch
+            path = f'{agent_name}/model_{save_epoch}_{current_time}.pt'
             super().study_agent(self.save_rate)
             memory = self.agent.memory
             if not self.SAVE_MEMORY:
                 self.agent.memory = []
             save_dqn_agent(self.agent, path=path)
             self.agent.memory = memory
-            with open(f'{agent_name}/rewards_{epoch}_{current_time}.txt', mode='w') as f:
+            with open(f'{agent_name}/rewards_{save_epoch}_{current_time}.txt', mode='w') as f:
                 f.write(repr(self.rewards_log))
-            with open(f'{agent_name}/estimates_{epoch}_{current_time}.txt', mode='w') as f:
+            with open(f'{agent_name}/estimates_{save_epoch}_{current_time}.txt', mode='w') as f:
                 f.write(repr(self.q_value_log))
-            with open(f'{agent_name}/sprints_{epoch}_{current_time}.txt', mode='w') as f:
+            with open(f'{agent_name}/sprints_{save_epoch}_{current_time}.txt', mode='w') as f:
                 f.write(repr(self.sprints_log))
