@@ -4,7 +4,8 @@ from environment.environment import ProductOwnerEnv
 
 
 class CreditPayerEnv(ProductOwnerEnv):
-    def __init__(self, userstory_env=None, backlog_env=None, with_sprint=True, with_end=False):
+    def __init__(self, userstory_env=None, backlog_env=None, with_sprint=True, with_end=False,
+                 with_late_purchases_punishment=False):
         if userstory_env is None:
             userstory_env = UserstoryEnv(6, 0, 0)
         if backlog_env is None:
@@ -12,19 +13,20 @@ class CreditPayerEnv(ProductOwnerEnv):
         super().__init__(userstory_env, backlog_env, with_sprint)
         self.buyers_actions = {3, 4, 5, 6}
         self.with_end = with_end
+        self.with_late_purchases_punishment = with_late_purchases_punishment
 
     def step(self, action: int):
         context = self.game.context
         loyalty_before = context.get_loyalty()
         customers_before = context.customers
         money_before = context.get_money()
-        end_sprint = 35 if self.with_end else 30
+        end_sprint = 35 if self.with_end else 32
 
         new_state, reward, done, info = super().step(action)
 
         done = self.game.context.current_sprint == end_sprint or done
         reward += self._get_credit_payer_reward(loyalty_before, customers_before)
-        if self.with_end:
+        if self.with_end and self.with_late_purchases_punishment:
             reward += self._get_buyers_late_sprints_reward(action, money_before)
 
         return new_state, reward, done, info
